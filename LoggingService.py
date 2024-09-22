@@ -5,11 +5,14 @@ from pymongo.server_api import ServerApi
 from datetime import datetime
 import hashlib
 import time
+import certifi
+
+ca = certifi.where()
 
 class LoggingService:
     def __init__(self,uri,max_retries = 3,delay=5):
         # Load DB
-        client = MongoClient(uri, server_api=ServerApi('1'))
+        client = MongoClient(uri, server_api=ServerApi('1'), tlsCAFile=ca)
         for attempt in range(max_retries):
             try:
                 client.admin.command('ping')
@@ -24,6 +27,8 @@ class LoggingService:
                     time.sleep(delay)  # Wait for some time before retrying
                 else:
                     raise
+            databases = client.list_database_names()
+            print("Databases:", databases)
 
     def log_startup(self):
         unique_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()
