@@ -14,8 +14,8 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 URI = os.getenv("MONGODB_URI")
 CHANNEL_1 = int(os.getenv("CHANNEL_ID_1"))
-CHANNEL_2 = int(os.getenv("CHANNEL_ID_2")) # CAN BE REMOVED WICS 2024-2025
 client = commands.Bot(command_prefix="$",intents=discord.Intents.default()) 
+
 
 # Create instances for postings
 logger = LoggingService(URI)
@@ -53,7 +53,6 @@ async def send_new_grad_roles():
     # This function runs every 24 hours and sends new grad roles
     logger.check_space()
     job_channel = client.get_channel(CHANNEL_1)
-    plugs = client.get_channel(CHANNEL_2)
     df_posting = job_fetcher.latest_newgrad_postings()
     newgrad_color = 0xf2f0ff
 
@@ -87,7 +86,6 @@ async def send_new_grad_roles():
                 
                 try:
                     await job_channel.send(embed=embed)
-                    await plugs.send(embed=embed)
                     logger.set_sucessful_shared_status(hash_id)
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
