@@ -12,7 +12,7 @@ ca = certifi.where()
 class LoggingService:
     def __init__(self,uri,max_retries = 3,delay=5):
         # Load DB
-        client = MongoClient(uri, server_api=ServerApi('1'), tlsCAFile=ca)
+        client = MongoClient(uri, tlsCAFile=ca)
         for attempt in range(max_retries):
             try:
                 client.admin.command('ping')
