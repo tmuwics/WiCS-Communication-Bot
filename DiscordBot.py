@@ -90,7 +90,7 @@ async def send_new_grad_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"New grad role {company} failed to send",str(ex))
-                time.sleep(5)
+                time.sleep(20)
 
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending New Grad roles",err)
@@ -138,7 +138,7 @@ async def send_summer_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"Summer role {company} failed to send",str(ex))
-                time.sleep(5)
+                time.sleep(20)
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending summer roles",err)
         return
