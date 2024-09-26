@@ -14,7 +14,7 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 URI = os.getenv("MONGODB_URI")
 CHANNEL_1 = int(os.getenv("CHANNEL_ID_1"))
-client = commands.Bot(command_prefix="$",intents=discord.Intents.default()) 
+client = commands.Bot(command_prefix="/",intents=discord.Intents.default()) 
 
 
 # Create instances for postings
@@ -187,7 +187,7 @@ async def send_offseason_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"Offseason role {company} failed to send",str(ex))
-                time.sleep(20)
+                time.sleep(5)
 
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending Offseason roles",err)
