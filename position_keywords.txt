@@ -1,0 +1,24 @@
+software
+data scientist
+web
+website
+web content
+machine learning
+artificial intelligence
+computer vision
+ux/ui
+data analyst
+backend
+frontend
+programmer
+cyber security
+devops
+mobile app
+full stack
+embedded systems
+cryptography
+information technology
+cloud
+database
+product
+project

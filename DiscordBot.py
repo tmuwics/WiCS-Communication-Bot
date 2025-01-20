@@ -2,20 +2,23 @@ import discord
 import time
 from discord.ext import tasks,commands
 import os
+import logging
 from dotenv import load_dotenv 
 from JobPostingFetcher import JobPostingFetcher 
 from DataFrameAccessor import DataFrameAccessor
 from LoggingService import LoggingService
 from TextFormattingHandler import TextFormattingHandler
 from JobScrapingService import JobScrapingService
+from JobSpyScrape import fetch_unposted_jobs, mark_as_posted, scrape_and_store
 
 # Setup Bot
 load_dotenv()
+
 TOKEN = os.getenv("TOKEN")
 URI = os.getenv("MONGODB_URI")
 CHANNEL_1 = int(os.getenv("CHANNEL_ID_1"))
+CANADIAN_CHANNEL = int(os.getenv("CANADIAN_CHANNEL_ID"))
 client = commands.Bot(command_prefix="/",intents=discord.Intents.default()) 
-
 
 # Create instances for postings
 logger = LoggingService(URI)
@@ -28,6 +31,7 @@ job_fetcher = JobPostingFetcher(formatter,data_scraper,data_accessor)
 newgrad_icon = "https://cdn-icons-png.flaticon.com/128/1991/1991047.png"
 internship_icon = "https://cdn-icons-png.flaticon.com/128/7376/7376577.png"
 offseason_icon = "https://cdn-icons-png.flaticon.com/128/2117/2117739.png"
+canadian_job_img = "https://i.imghippo.com/files/nav7918c.png"
 
 @client.event
 async def on_ready():
@@ -47,6 +51,10 @@ async def on_ready():
         send_offseason_roles.start()
     except Exception as ex:
         logger.log_task_start_exception("TASK START EXCEPTION: Offseason roles",ex)
+    try:
+        post_jobs_command.start()
+    except Exception as e:
+        logging.error(f"Error during calling jobspy scraper: {e}")
 
 @tasks.loop(hours=24)
 async def send_new_grad_roles():
@@ -192,5 +200,54 @@ async def send_offseason_roles():
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending Offseason roles",err)
         return
+
+# helper functions for jobspy scrape
+# function to process NaN value for date_posted
+def process_date_posted(date_value):
+    if not date_value or str(date_value).lower() == "nan":
+        return "N/A"
+    return date_value
+
+# creates embed message
+def create_embed(job):
+    embed = discord.Embed(
+        title=job["title"],
+        description=f"Posted by {job['company']}",
+        color=0xc2f2cf
+    )
+    embed.set_thumbnail(url=canadian_job_img)
+    embed.add_field(name="Location", value=job["location"], inline=True)
+    embed.add_field(name="Date Posted", value=process_date_posted(job["date_posted"]), inline=True)
+    embed.add_field(name="Job Post URL", value=f"[Click Here]({job['job_url']})", inline=False)
+    # embed.set_footer(text="Powered by JobSpy")
+    return embed
+
+@tasks.loop(hours=24)
+async def post_jobs_command():
+    channel = client.get_channel(CANADIAN_CHANNEL)
+    try:
+        # await ctx.send("Starting job scraping...")
+        await scrape_and_store(URI)
+        logging.info("Starting jobspy scraping...")
+        # await ctx.send("Job scraping completed and stored in MongoDB.")
+    except Exception as e:
+        logging.error(f"Error during job scraping: {e}")
+        # await ctx.send(f"Error occurred during job scraping: {e}")
+
+    try:
+        jobs_to_post = fetch_unposted_jobs(URI)  # Fetch unposted jobs from MongoDB
+        for job in jobs_to_post:
+            embed = create_embed(job)
+            try:
+                await channel.send(embed=embed)  # Post job to Discord
+                mark_as_posted(URI, job["_id"])  # Mark job as posted in MongoDB
+                # logging.info(f"Posted job: {job['title']} at {job['company']}")
+            except Exception as e:
+                logging.error(f"Failed to post job: {job['title']}. Error: {e}")
+        # await ctx.send("Jobs have been posted.")
+    except Exception as e:
+        logging.error(f"Error during job posting: {e}")
+        # await ctx.send(f"Error occurred during job posting: {e}")
+
 
 client.run(TOKEN) #runs the bot with the login token from the .env file
