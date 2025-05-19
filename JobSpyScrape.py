@@ -82,7 +82,7 @@ async def job_spy(uri):
     for search_term, google_search_term in zip(position_names, google_position_queries):
         try:
             jobs = scrape_jobs(
-                site_name=["indeed", "linkedin"],
+                site_name=["linkedin"],
                 search_term=search_term,
                 google_search_term=google_search_term,
                 location="Canada",
