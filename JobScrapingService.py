@@ -23,12 +23,12 @@ class JobScrapingService:
         return str(soup.encode("utf-8"))
     
     def get_github_offseason2024(self):
-        URL = self.offseason_internships
-        response = requests.get(URL) 
-        data = response.json()
-        readme_content = base64.b64decode(data['content'])
-        self.logger.log_data_scrapped(URL,"Offseason roles scraped")
-        return str(readme_content)
+        url = self.offseason_internships
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        readme = response.content.decode("utf-8")
+        self.logger.log_data_scrapped(url, "Offseason roles scraped")
+        return readme
     
     def get_github_newgrad2024(self):
         URL = self.newgrad_internships

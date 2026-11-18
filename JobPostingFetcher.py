@@ -34,4 +34,3 @@ class JobPostingFetcher:
         # Get latest postings
         df_postings = self.data_accessor.get_reccent_postings(df_newgrad)
         return df_postings
-

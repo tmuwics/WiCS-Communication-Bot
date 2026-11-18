@@ -22,9 +22,9 @@ def load_txt_file(file_path):
 MongoDB Configuration
 '''
 # MongoDB configuration
-def mongodb(mongo_uri):
-    client = MongoClient(mongo_uri) 
-    db = client['postings']
+def mongodb(mongo_uri):                             # DEC 1ST, CHANGE TO postings_dev, jospy_screaped, jobspy_logs
+    client = MongoClient(mongo_uri)                 # Made changes for tester bot
+    db = client['postings_dev']
     job_collection = db['jobspy_scraped']
     job_logs = db['jobspy_logs']
     return job_collection, job_logs

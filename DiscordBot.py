@@ -3,6 +3,7 @@ import time
 from discord.ext import tasks,commands
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv 
 from JobPostingFetcher import JobPostingFetcher 
 from DataFrameAccessor import DataFrameAccessor
@@ -14,23 +15,23 @@ from JobSpyScrape import fetch_unposted_jobs, mark_as_posted, scrape_and_store
 # Setup Bot
 load_dotenv()
 
-TOKEN = os.getenv("TOKEN")
-URI = os.getenv("MONGODB_URI")
-CHANNEL_1 = int(os.getenv("CHANNEL_ID_1"))
-CANADIAN_CHANNEL = int(os.getenv("CANADIAN_CHANNEL_ID"))
+TOKEN  = os.getenv("TOKEN")
+URI    = os.getenv("MONGODB_URI")
 client = commands.Bot(command_prefix="/",intents=discord.Intents.default()) 
+CHANNEL_1        = int(os.getenv("CHANNEL_ID_1"))
+CANADIAN_CHANNEL = int(os.getenv("CANADIAN_CHANNEL_ID"))
 
 # Create instances for postings
-logger = LoggingService(URI)
+logger        = LoggingService(URI)
 data_accessor = DataFrameAccessor(logger)
-formatter = TextFormattingHandler()
-data_scraper = JobScrapingService(logger)
-job_fetcher = JobPostingFetcher(formatter,data_scraper,data_accessor)
+formatter     = TextFormattingHandler()
+data_scraper  = JobScrapingService(logger)
+job_fetcher   = JobPostingFetcher(formatter,data_scraper,data_accessor)
 
 # Define icons for different types of roles
-newgrad_icon = "https://cdn-icons-png.flaticon.com/128/1991/1991047.png"
-internship_icon = "https://cdn-icons-png.flaticon.com/128/7376/7376577.png"
-offseason_icon = "https://cdn-icons-png.flaticon.com/128/2117/2117739.png"
+newgrad_icon     = "https://cdn-icons-png.flaticon.com/128/1991/1991047.png"
+internship_icon  = "https://cdn-icons-png.flaticon.com/128/7376/7376577.png"
+offseason_icon   = "https://cdn-icons-png.flaticon.com/128/2117/2117739.png"
 canadian_job_img = "https://i.imghippo.com/files/nav7918c.png"
 
 @client.event
@@ -61,6 +62,9 @@ async def send_new_grad_roles():
     # This function runs every 24 hours and sends new grad roles
     logger.check_space()
     job_channel = client.get_channel(CHANNEL_1)
+    if job_channel is None:
+        job_channel = await client.fetch_channel(CHANNEL_1)
+        
     df_posting = job_fetcher.latest_newgrad_postings()
     newgrad_color = 0xf2f0ff
 
@@ -98,7 +102,7 @@ async def send_new_grad_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"New grad role {company} failed to send",str(ex))
-                time.sleep(5)
+                await asyncio.sleep(5)
 
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending New Grad roles",err)
@@ -109,6 +113,8 @@ async def send_summer_roles():
     # This function runs every 24 hours and sends summer roles
     logger.check_space()
     job_channel = client.get_channel(CHANNEL_1)
+    if job_channel is None:
+        job_channel = await client.fetch_channel(CHANNEL_1)
     df_posting = job_fetcher.latest_internship_postings()
     summer_color = 0xd1c171
     try:
@@ -146,7 +152,7 @@ async def send_summer_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"Summer role {company} failed to send",str(ex))
-                time.sleep(5)
+                await asyncio.sleep(5)
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending summer roles",err)
         return
@@ -156,6 +162,8 @@ async def send_offseason_roles():
     # This function runs every 24 hours and sends offseason roles
     logger.check_space()
     job_channel = client.get_channel(CHANNEL_1)
+    if job_channel is None:
+        job_channel = await client.fetch_channel(CHANNEL_1)
     df_posting = job_fetcher.latest_offseason_postings()
     offseason_color = 0x71b4d1
 
@@ -195,7 +203,7 @@ async def send_offseason_roles():
                 except Exception as ex:
                     logger.set_failed_shared_status(hash_id)
                     logger.log_post_failure(data,f"Offseason role {company} failed to send",str(ex))
-                time.sleep(5)
+                await asyncio.sleep(5)
 
     except(AttributeError) as err:
         logger.log_task_exception("TASK ERROR: While sending Offseason roles",err)
@@ -225,6 +233,8 @@ def create_embed(job):
 @tasks.loop(hours=24)
 async def post_jobs_command():
     channel = client.get_channel(CANADIAN_CHANNEL)
+    if channel is None:
+        channel = await client.fetch_channel(CANADIAN_CHANNEL)
     try:
         # await ctx.send("Starting job scraping...")
         await scrape_and_store(URI)

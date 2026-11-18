@@ -4,6 +4,8 @@ import json
 from datetime import datetime, timedelta
 import os
 import time
+import ast
+from bs4 import BeautifulSoup
 # WICS 2024-2025: Note this class made need to be restructed depending on whether you use a SimplyJobs Repo or not.
 class TextFormattingHandler:
     def __init__(self):
@@ -11,47 +13,107 @@ class TextFormattingHandler:
         self.table_end ="\\n\\n<!-- Please leave a one line gap between this and the table TABLE_END (DO NOT CHANGE THIS LINE) -->"
         self.DATE_FORMAT = "%m/%d"
 
-    def readme_to_dataframe(self, text): # Formats internships and new grad readmes
-        # Locate readme table
-        result = text.split(self.table_start)
-        table_top = result[1]
-        markdown_table = table_top.split(self.table_end)    
-        markdown_table_rows = markdown_table[0].split("\\n")[2:] 
-        table = [re.split('\|', x) for x in markdown_table_rows]
+    def readme_to_dataframe(self, text):
+    # The existing fetchers return str(bytes), which escapes newlines
+    # and non-ASCII characters. Recover the original text before parsing.
+        if text.startswith(("b'", 'b"')):
+            text = ast.literal_eval(text).decode("utf-8")
 
-        # Create dataframe
-        df = pd.DataFrame(table,columns=["EmptyFront","Company","Role","Location","Application Link","Date Posted","EmptyBack"])
-        df["Number"] = range(len(df))
-        df.set_index('Number', inplace=True)
+        headers = ["Company", "Role", "Location", "Application", "Age"]
+        columns = ["Company", "Role", "Location", "Application Link", "Date Posted"]
+        soup = BeautifulSoup(text, "html.parser")
+        today = datetime.today().date()
+        rows = []
+        found_table = False
 
-        # Fix date format
-        df["Date Posted"] = [self.format_timestamp(d) for d in df["Date Posted"]]
-        
-        # Drop empty columns
-        df = df.drop("EmptyFront",axis=1)
-        df = df.drop("EmptyBack",axis=1)
+        for table in soup.find_all("table"):
+            table_headers = [cell.get_text(strip=True) for cell in table.select("thead th")]
+            if table_headers != headers:
+                continue
+
+            found_table = True
+            previous_company = ""
+
+            for row in table.select("tbody tr"):
+                cells = row.find_all("td", recursive=False)
+                if len(cells) != len(headers):
+                    continue
+
+                company, role, location, application, age = cells
+                company_name = company.get_text(" ", strip=True)
+                if company_name and company_name != "↳":
+                    previous_company = company_name
+
+                age_match = re.fullmatch(r"(\d+)d", age.get_text(strip=True))
+                if not previous_company or age_match is None:
+                    continue
+
+                posted_date = today - timedelta(days=int(age_match.group(1)))
+                rows.append([
+                    previous_company,
+                    role.get_text(" ", strip=True),
+                    location.decode_contents(),
+                    application.decode_contents(),
+                    posted_date.strftime(self.DATE_FORMAT),
+                ])
+
+        if not found_table:
+            raise ValueError("No summer or new-grad job table found in the README")
+
+        df = pd.DataFrame(rows, columns=columns)
+        df.index.name = "Number"
         return df
     
     def readme_offseason_to_dataframe(self, text): # Formats offseason readme
-        # Locate readme table
-        result = text.split(self.table_start)
-        table_top = result[1]
-        markdown_table = table_top.split(self.table_end)    
-        markdown_table_rows = markdown_table[0].split("\\n")[2:] 
-        table = [re.split('\|', x) for x in markdown_table_rows]
-
-        # Create dataframe
-        df = pd.DataFrame(table,columns=["EmptyFront","Company","Role","Location","Terms","Application Link","Date Posted","EmptyBack"])
-        df["Number"] = range(len(df))
-        df.set_index('Number', inplace=True)
-
-        # Fix date format
-        df["Date Posted"] = [self.format_timestamp(d) for d in df["Date Posted"]]
+        # The existing fetchers return str(bytes), which escapes newlines
+            # and non-ASCII characters. Recover the original text before parsing.
+                if text.startswith(("b'", 'b"')):
+                    text = ast.literal_eval(text).decode("utf-8")
         
-        # Drop empty columns
-        df = df.drop("EmptyFront",axis=1)
-        df = df.drop("EmptyBack",axis=1)
-        return df
+                headers = ["Company", "Role", "Location", "Application", "Age"]
+                columns = ["Company", "Role", "Location", "Terms", "Application Link", "Date Posted"]
+                soup = BeautifulSoup(text, "html.parser")
+                today = datetime.today().date()
+                rows = []
+                found_table = False
+        
+                for table in soup.find_all("table"):
+                    table_headers = [cell.get_text(strip=True) for cell in table.select("thead th")]
+                    if table_headers != headers:
+                        continue
+        
+                    found_table = True
+                    previous_company = ""
+        
+                    for row in table.select("tbody tr"):
+                        cells = row.find_all("td", recursive=False)
+                        if len(cells) != len(headers):
+                            continue
+        
+                        company, role, location, application, age = cells
+                        company_name = company.get_text(" ", strip=True)
+                        if company_name and company_name != "↳":
+                            previous_company = company_name
+        
+                        age_match = re.fullmatch(r"(\d+)d", age.get_text(strip=True))
+                        if not previous_company or age_match is None:
+                            continue
+        
+                        posted_date = today - timedelta(days=int(age_match.group(1)))
+                        rows.append([
+                            previous_company,
+                            role.get_text(" ", strip=True),
+                            location.decode_contents(),
+                            application.decode_contents(),
+                            posted_date.strftime(self.DATE_FORMAT),
+                        ])
+        
+                if not found_table:
+                    raise ValueError("No off-season job table found in the README")
+        
+                df = pd.DataFrame(rows, columns=columns)
+                df.index.name = "Number"
+                return df
 
     def json_to_dataframe(self,json_data): # Json from zobjobs endpoint to dataframe
         data = json.loads(json_data)
