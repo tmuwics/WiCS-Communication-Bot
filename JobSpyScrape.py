@@ -24,7 +24,7 @@ MongoDB Configuration
 # MongoDB configuration
 def mongodb(mongo_uri):                             # DEC 1ST, CHANGE TO postings_dev, jospy_screaped, jobspy_logs
     client = MongoClient(mongo_uri)                 # Made changes for tester bot
-    db = client['postings_dev']
+    db = client['postings']
     job_collection = db['jobspy_scraped']
     job_logs = db['jobspy_logs']
     return job_collection, job_logs
