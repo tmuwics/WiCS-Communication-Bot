@@ -81,7 +81,8 @@ async def job_spy(uri):
     job_logs.insert_one({"message": "Jobspy starting scraping..."})
     for search_term, google_search_term in zip(position_names, google_position_queries):
         try:
-            jobs = scrape_jobs(
+            jobs = await asyncio.to_thread(
+                scrape_jobs,
                 site_name=["linkedin"],
                 search_term=search_term,
                 google_search_term=google_search_term,
